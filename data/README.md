@@ -34,6 +34,25 @@ Column semantics for the battle CSVs are documented in
 `training/preprocess_data.py` (which produces them from the raw rankings) and
 in `training/train.py`'s dataset loader.
 
+## Analysis inputs (masked ranking CSVs)
+
+The analysis framework (`../analysis/`) reads the per-dimension ranking CSVs
+from `TASTE_DATA_DIR` (default: this `data/` directory). Ranking files use the
+columns:
+
+```
+eval_round_stage_id, model, rank, prompt_id, evaluator, prompt, model_output_image_url
+```
+
+and the hallucination-flag files use:
+
+```
+evaluator, model, hallucination_value, asset_id, prompt_id, hallucination_flag
+```
+
+The `evaluator` column carries the masked code (`A1`-`A5` / `D1`-`D5`), never a
+real identity.
+
 ## Note for inference-only users
 
 You do **not** need this dataset to run the scorer — only a trained

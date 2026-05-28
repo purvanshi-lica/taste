@@ -1,5 +1,5 @@
 """
-Per-dimension MLP scoring heads + binary hallucination head for HPS-Contra.
+Per-dimension MLP scoring heads + binary hallucination head for TASTE.
 
 Each evaluation dimension (e.g. ``preference``, ``typography``,
 ``color_harmony``…) gets its own small MLP that maps the *fused* (text,

@@ -1,5 +1,5 @@
 """
-Inference + evaluation for multi-dimension HPS-Contra.
+Inference + evaluation for multi-dimension TASTE.
 
 Loads a trained checkpoint (per-dimension MLP heads + optional
 hallucination head + optional LoRA adapter) or a raw VLM baseline
@@ -695,11 +695,11 @@ def generate_html_report(
 <html>
 <head>
 <meta charset="utf-8">
-<title>HPS-Contra Eval Report</title>
+<title>TASTE Eval Report</title>
 <style>body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:1024px;margin:0 auto;padding:24px;background:#f9fafb}}</style>
 </head>
 <body>
-<h1>HPS-Contra Evaluation Report</h1>
+<h1>TASTE Evaluation Report</h1>
 <div style="display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap">
   <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;flex:1;text-align:center;min-width:120px">
     <div style="font-size:36px;font-weight:700">{overall['accuracy']:.1%}</div>
@@ -935,7 +935,7 @@ def cmd_eval(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="HPS-Contra inference")
+    parser = argparse.ArgumentParser(description="TASTE inference")
     parser.add_argument("--device", type=str, default=None)
     sub = parser.add_subparsers(dest="command", required=True)
 

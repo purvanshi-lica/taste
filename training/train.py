@@ -1,5 +1,5 @@
 """
-Train HPS-Contra ranking + hallucination heads.
+Train TASTE ranking + hallucination heads.
 
 Architecture (current default):
 
@@ -1428,7 +1428,7 @@ def save_checkpoint(
 # CLI
 # ---------------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Train multi-head HPS-Contra")
+    parser = argparse.ArgumentParser(description="Train multi-head TASTE")
     parser.add_argument("--train-csv", default="data/battles_train.csv")
     parser.add_argument("--val-csv", default="data/battles_val.csv")
     parser.add_argument("--halluc-train-csv", default="data/halluc_train.csv")

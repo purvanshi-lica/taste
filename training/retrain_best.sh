@@ -23,7 +23,7 @@
 #   bash retrain_best.sh
 #
 # Override data paths / project from the env if needed, e.g.:
-#   TRAIN_CSV=~/contra/battles_train.csv  bash retrain_best.sh
+#   TRAIN_CSV=~/data/battles_train.csv  bash retrain_best.sh
 
 set -uo pipefail
 
@@ -32,7 +32,7 @@ VAL_CSV=${VAL_CSV:-data/battles_val.csv}
 HALLUC_TRAIN_CSV=${HALLUC_TRAIN_CSV:-data/halluc_train.csv}
 HALLUC_VAL_CSV=${HALLUC_VAL_CSV:-data/halluc_val.csv}
 IMAGE_DIR=${IMAGE_DIR:-data/images}
-WANDB_PROJECT=${WANDB_PROJECT:-contra-hps}
+WANDB_PROJECT=${WANDB_PROJECT:-taste}
 OUTPUT_DIR=${OUTPUT_DIR:-checkpoints/best_pairwise}
 
 mkdir -p "$OUTPUT_DIR"

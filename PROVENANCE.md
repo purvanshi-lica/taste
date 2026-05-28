@@ -6,12 +6,10 @@ can be mapped back to the source it was assembled from.
 ## Source
 
 All training-side code and the local reference artifacts were extracted
-(read-only, via `git show`) from the internal monorepo branch:
+(read-only, via `git show`) from an internal research monorepo at a fixed
+commit:
 
-- **repo:** `lica-world/ml-platform`
-- **branch:** `hps-contra`
 - **commit:** `d0aa1e2`
-- **subpath:** `other-projects/hps-contra/`
 - **extracted on:** 2026-05-27
 
 The inference package under `src/taste_scorer/` predates this extraction and
@@ -20,7 +18,7 @@ architecture.
 
 ## What came from where
 
-| destination | source (on `hps-contra@d0aa1e2`) | notes |
+| destination | source (internal monorepo @ `d0aa1e2`) | notes |
 |-------------|-----------------------------------|-------|
 | `training/train.py`            | `train.py`            | byte-identical |
 | `training/heads.py`            | `heads.py`            | byte-identical; functionally identical to `src/taste_scorer/heads.py` (docstring differs) |
@@ -42,6 +40,20 @@ architecture.
 checkpoint, while `src/taste_scorer/` is the maintained inference package.
 They are functionally identical today; do not assume one is generated from
 the other.
+
+## Analysis module
+
+`analysis/` was copied on 2026-05-28 from `data_analysis/` in the source monorepo
+(`distribution_tests/`, `vlm_judge/`, `hallucination_agreement.py`). Changes made
+for release: the per-dimension statistics module is named `taste_stats.py`
+(with a `load_rank_tensor` loader); an internal statistics dependency was
+inlined, the local `null_kendall.py` (byte-identical to its source) supplying
+`stat_T`, so the analysis imports with no external package; `DATA_DIR`
+repointed to the repo `data/` (override `TASTE_DATA_DIR`); the figure scripts take
+`--out-dir`; codename, venue, internal paths, and hardcoded rater names scrubbed;
+the cross-domain anchor arrays under `distribution_tests/refs/` are fetched separately (data, not committed).
+Excluded: `legacy/`, the internal onboarding document, the raw CSVs, and all
+reproduction outputs (figures, stats, `*.jsonl`, auto-generated reports).
 
 ## Not included
 

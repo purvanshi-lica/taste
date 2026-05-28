@@ -1,5 +1,5 @@
 """
-Preprocess multi-dimension ranking & hallucination CSVs for HPS-Contra.
+Preprocess multi-dimension ranking & hallucination CSVs for TASTE.
 
 The data folder contains files named ``ui+{a,d}_<Criterion>.csv``:
 

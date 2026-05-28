@@ -18,8 +18,8 @@ best-performing variant in the training repository).
 ## Install
 
 ```bash
-git clone <this repo>
-cd taste-scorer
+git clone https://github.com/purvanshi-lica/taste.git
+cd taste
 pip install -e .
 ```
 
@@ -175,6 +175,14 @@ details, the architecture, and the expected results are in
 [`training/README.md`](training/README.md).  The dataset is fetched separately
 and designer-masked — see [`data/README.md`](data/README.md).
 
+## Reproducing the paper analysis
+
+The dataset paper's analysis (the signal-validation distribution tests, the
+off-the-shelf VLM-as-judge benchmark, and hallucination-flag agreement) lives in
+[`analysis/`](analysis/). It reproduces from the masked dataset fetched into
+`data/`; see [`analysis/README.md`](analysis/README.md) and
+[`analysis/expected_results.md`](analysis/expected_results.md).
+
 ## Project layout
 
 ```
@@ -191,8 +199,6 @@ taste-scorer/
 │   └── README.md
 ├── examples/
 │   └── input_example.csv
-├── results/                     # local reference only (git-ignored)
-│   └── README.md
 ├── scripts/
 │   └── score.py                 # thin CLI wrapper (no install needed)
 ├── tests/
@@ -202,6 +208,11 @@ taste-scorer/
 │   ├── train.py · retrain_best.sh
 │   ├── heads.py · embedders.py · embed_cache.py · inference.py
 │   └── preprocess_data.py · summarize_sweep.py
+├── analysis/                   # paper analysis (reproduces §4-§6)
+│   ├── README.md · requirements.txt · expected_results.md
+│   ├── distribution_tests/     # signal-validation framework (refs/ fetched)
+│   ├── vlm_judge/              # open-weight VLM-as-judge benchmark
+│   └── hallucination_agreement.py
 └── src/taste_scorer/            # the pip-installable inference package
     ├── __init__.py              # public re-exports
     ├── model.py                 # Qwen3-VL embedding wrapper
