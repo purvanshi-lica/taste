@@ -1,0 +1,4 @@
+pair_id,prompt,image_a,image_b
+1,"A clean coffee shop poster with bold typography and warm tones","poster_a_001.jpg","poster_b_001.jpg"
+2,"Minimalist book cover, sans-serif title centered on a pastel background","cover_a_002.jpg","cover_b_002.jpg"
+3,"Vintage travel ad for Paris, ornate frame, muted color palette","travel_a_003.jpg","travel_b_003.jpg"

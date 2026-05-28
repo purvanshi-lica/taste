@@ -1,0 +1,65 @@
+# ---------------------------------------------------------------------------
+# taste-scorer .gitignore (standalone public release)
+# ---------------------------------------------------------------------------
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Model weights / checkpoints ---
+# Checkpoints are fetched, not committed.  Keep the directory's README only.
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.bin
+lora_adapter/
+checkpoints/*
+!checkpoints/README.md
+
+# --- Data ---
+# Data is fetched via the HF / Drive interface (masked for designer privacy),
+# never committed.  Keep the directory's README only.
+data/*
+!data/README.md
+*.parquet
+images/
+
+# --- Local results (kept on disk for paper reference, NOT shared) ---
+# Sweep reports, premodel.tex, and any eval outputs live here locally but are
+# intentionally excluded from the public repo.  Keep only the README.
+results/*
+!results/README.md
+
+# --- Run outputs ---
+scored*.csv
+*_scored.csv
+*.html
+wandb/
+runs/
+outputs/
+logs/
+*.log
+
+# --- HuggingFace / Torch caches (if ever placed in-tree) ---
+.cache/
+hf_cache/
+
+# --- OS / editor noise ---
+.DS_Store
+__MACOSX/
+*.swp
+*~
+.idea/
+.vscode/

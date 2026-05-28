@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use TASTE-scorer or the TASTE dataset, please cite the paper."
+title: "TASTE: A Designer-Annotated Multi-Dimensional Preference Dataset for AI-Generated Graphic Design"
+# NOTE (release TODO): confirm final author list/order and proceedings
+# details before publishing. Bibliographic fields below are provisional.
+authors:
+  - family-names: Zhu
+    given-names: Haonan
+  - family-names: Hirsch
+    given-names: Elad
+  - family-names: Minetti
+    given-names: Alexandria
+  - family-names: Nulty
+    given-names: Allison
+  - family-names: Mehta
+    given-names: Purvanshi
+year: 2026
+url: "https://arxiv.org/abs/2605.20731"
+identifiers:
+  - type: other
+    value: "arXiv:2605.20731"
+    description: "arXiv preprint"
+# venue / proceedings details to be added upon publication
+license: MIT
