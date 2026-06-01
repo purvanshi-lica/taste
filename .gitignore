@@ -29,10 +29,16 @@ checkpoints/*
 !checkpoints/README.md
 
 # --- Data ---
-# Data is fetched via the HF / Drive interface (masked for designer privacy),
-# never committed.  Keep the directory's README only.
+# The dataset is fetched from the HF Hub (masked for designer privacy), never
+# committed.  Keep the processing scripts + README; ignore everything fetched
+# or derived (raw snapshot, ranking CSVs, battles).
 data/*
 !data/README.md
+!data/process.py
+!data/requirements.txt
+data/raw/
+data/rankings/
+data/battles.csv
 *.parquet
 images/
 

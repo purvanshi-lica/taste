@@ -1,0 +1,4 @@
+# Dependencies for the TASTE dataset processing scripts (process.py).
+pandas>=2.0
+pyarrow>=14.0          # parquet backend for pandas
+huggingface_hub>=0.23  # `download` subcommand + streaming via hf:// URIs

@@ -1,244 +1,72 @@
-# TASTE-scorer
+# TASTE
 
-Inference for the **TASTE preference model**: given an image pair and a
-text prompt, the scorer returns a per-dimension probability that
-*image A* is preferred over *image B*, plus an optional per-image
-hallucination probability.
+This is the code and data repository for the paper
 
-The model is a small modular preference head trained on top of a frozen
-[Qwen3-VL-Embedding-2B](https://huggingface.co/Qwen/Qwen3-VL-Embedding-2B)
-backbone, with one MLP per ranking dimension and a *pairwise-difference*
-fusion: each per-dimension head consumes
-`[t, i_a, i_b, i_a − i_b, |i_a − i_b|, t ⊙ (i_a − i_b)]` and emits a
-Bradley-Terry logit directly.
+> **TASTE: A Designer-Annotated Multi-Dimensional Preference Dataset for AI-Generated Graphic Design**
+> [arXiv:2605.20731](https://arxiv.org/abs/2605.20731) · [PDF](https://arxiv.org/pdf/2605.20731)
 
-This package supports only the **pairwise-head** architecture (the
-best-performing variant in the training repository).
+and the accompanying **TASTE dataset**, hosted on the Hugging Face Hub:
 
-## Install
+> [`purvanshi/TASTE`](https://huggingface.co/datasets/purvanshi/TASTE)
 
-```bash
-git clone https://github.com/purvanshi-lica/taste.git
-cd taste
-pip install -e .
-```
+TASTE is a corpus of designer-panel rankings of AI-generated graphic designs
+across multiple aesthetic and description-faithfulness dimensions, plus a small
+preference model trained on it.
 
-This pulls in `torch`, `transformers`, `qwen-vl-utils`, `peft`, and a
-small set of utilities (see `requirements.txt` for the full list).
+This is a joint work of **[Lica World](https://lica.world)** and **[Contra](https://contra.com)**.
 
-A CUDA-capable GPU is recommended.
+## Repository layout
 
-## Get a checkpoint
+The repo is organized into three top-level parts, each self-contained with its
+own README:
 
-The checkpoint is a directory containing four files:
+| Directory | What it is | README |
+|---|---|---|
+| [`analysis/`](analysis/) | The dataset-paper analysis — signal-validation distribution tests, the open-weight VLM-as-judge benchmark, and hallucination-flag agreement. | [`analysis/README.md`](analysis/README.md) |
+| [`data/`](data/) | Processing scripts for the TASTE dataset on the Hugging Face Hub — download a local snapshot and derive the per-dimension ranking CSVs and pairwise battles used by `analysis/` and `taste-scorer/`. | [`data/README.md`](data/README.md) |
+| [`taste-scorer/`](taste-scorer/) | The pip-installable **TASTE preference model** — inference for per-dimension "which design does the panel prefer?" probabilities from an image pair and a prompt. | [`taste-scorer/README.md`](taste-scorer/README.md) |
 
-```
-checkpoint_dir/
-├── heads.pt           # PairwiseMultiHeadScorer state dict
-├── halluc_head.pt     # HallucinationHead state dict (optional)
-├── meta.json          # backbone name, dimensions, logit_scale, etc.
-└── lora_adapter/      # PEFT LoRA adapter (optional, only if LoRA-trained)
-```
+## Quick start
 
-Download a published checkpoint and point `--checkpoint` at the extracted
-directory.  See [`checkpoints/README.md`](checkpoints/README.md) for the
-download link and the exact format, or train your own (see
-[Training](#training)).
-
-## Input CSV format
-
-The scorer reads a CSV with three required columns (plus one optional
-passthrough):
-
-| column     | required | description                                                       |
-|------------|----------|-------------------------------------------------------------------|
-| `prompt`   | yes      | The text prompt the two images are being compared against.        |
-| `image_a`  | yes      | Path to image A.  Absolute, or relative to `--image-dir`.         |
-| `image_b`  | yes      | Path to image B.  Absolute, or relative to `--image-dir`.         |
-| `pair_id`  | no       | Optional user-side identifier; passed through to the output CSV.  |
-
-See [`examples/input_example.csv`](examples/input_example.csv) for a
-ready-to-edit template.
-
-```csv
-pair_id,prompt,image_a,image_b
-1,"A clean coffee shop poster with bold typography",poster_a_001.jpg,poster_b_001.jpg
-2,"Minimalist book cover, sans-serif title",cover_a_002.jpg,cover_b_002.jpg
-```
-
-Images are validated on disk before any model forward pass; missing
-files raise `FileNotFoundError` immediately.
-
-## Output CSV format
-
-The output CSV contains the input columns plus, for every ranking
-dimension the head was trained on, a column `prob_a_wins_<dim>` in
-`[0, 1]` — the calibrated probability that A is preferred over B on
-that dimension.  If the checkpoint has a hallucination head, two
-additional columns `halluc_prob_a` and `halluc_prob_b` (also in
-`[0, 1]`) hold the per-image hallucination probabilities.
-
-Example output for a checkpoint with the seven design dimensions and a
-halluc head:
-
-```csv
-pair_id,prompt,image_a,image_b,prob_a_wins_color_accuracy,prob_a_wins_color_harmony,prob_a_wins_mood_and_color_tone,prob_a_wins_preference,prob_a_wins_spatial_accuracy,prob_a_wins_typography,prob_a_wins_visual_hierarchy,halluc_prob_a,halluc_prob_b
-1,...,...,...,0.62,0.55,0.71,0.63,0.49,0.78,0.66,0.05,0.12
-```
-
-`prob_a_wins_<dim> > 0.5` means the model thinks image A is preferred on
-that dimension; closer to 0.5 means the model is uncertain.
-
-## Run from the command line
-
-After `pip install -e .`:
+The three parts are independent; install only what you need.
 
 ```bash
-taste-score score input.csv \
-    --output-csv scored.csv \
-    --checkpoint /path/to/best_pairwise/best \
-    --image-dir   /path/to/images/
+# Score image pairs with the preference model
+cd taste-scorer && pip install -e .
+
+# Reproduce the paper analysis
+cd analysis && pip install -r requirements.txt
+
+# Fetch and process the dataset
+cd data && pip install -r requirements.txt
 ```
 
-Without installing, use the script directly:
+The dataset itself is **not** committed here; it is fetched from the Hugging
+Face Hub (see [`data/README.md`](data/README.md)). Designer identities are
+masked before release — do not attempt to re-identify raters.
 
-```bash
-python scripts/score.py score input.csv \
-    --output-csv scored.csv \
-    --checkpoint /path/to/best_pairwise/best \
-    --image-dir   /path/to/images/
-```
+## Links
 
-Flags:
-
-| flag             | description                                                                                    |
-|------------------|------------------------------------------------------------------------------------------------|
-| `--checkpoint`   | Path to the checkpoint directory (required).                                                   |
-| `--output-csv`   | Where to write the scored CSV (required).                                                      |
-| `--image-dir`    | Root for relative image paths in the input CSV.                                                |
-| `--device`       | Torch device (`cuda` / `cpu` / `mps`).  Auto-detected if omitted.                              |
-| `--batch-size`   | Head-forward batch size; default 64.  Image / text encoding is one forward per unique value.   |
-
-## Use as a Python library
-
-```python
-import pandas as pd
-from taste_scorer import PreferenceScorer
-
-scorer = PreferenceScorer.from_checkpoint(
-    "path/to/best_pairwise/best",
-    device="cuda",  # optional; auto-detected
-)
-print(scorer.dimensions)        # ['color_accuracy', 'color_harmony', ...]
-print(scorer.has_halluc_head)   # True / False
-
-df_in  = pd.read_csv("input.csv")
-df_out = scorer.score_pairs(df_in, image_dir="path/to/images/")
-df_out.to_csv("scored.csv", index=False)
-```
-
-`score_pairs` deduplicates: each unique prompt and each unique image
-path is encoded by the backbone exactly once, regardless of how many
-input rows reference it.  The dominant cost is therefore the number of
-distinct prompts / images, not the number of pairs.
-
-## Ranking N candidates (best-of-N)
-
-The trained model is pairwise by construction, so there is no
-"score one image in isolation" mode.  To rank N candidates against a
-prompt:
-
-1. Build an input CSV with one row per ordered pair `(i, j)`, `i ≠ j`,
-   sharing the same `prompt` column.
-2. Run `taste-score score`.
-3. Aggregate the resulting `prob_a_wins_<dim>` matrix into a ranking
-   per dimension — counting wins (`prob > 0.5`), or fitting a
-   Bradley-Terry score in closed form from the win-probability matrix.
-
-For three candidates `c1, c2, c3` and the `preference` dimension, the
-total number of head forwards is 6 (the 3×3 minus-diagonal grid), all
-batched in a single call.
-
-## Training
-
-The inference package above runs a *trained* checkpoint.  To reproduce the
-model from the paper (the pairwise-difference head, val accuracy ≈ 0.611) or
-to train your own, see [`training/`](training/):
-
-```bash
-cd training
-bash retrain_best.sh        # needs the dataset under ../data/ and a GPU
-```
-
-`training/` is a self-contained snapshot of the original training code; full
-details, the architecture, and the expected results are in
-[`training/README.md`](training/README.md).  The dataset is fetched separately
-and designer-masked — see [`data/README.md`](data/README.md).
-
-## Reproducing the paper analysis
-
-The dataset paper's analysis (the signal-validation distribution tests, the
-off-the-shelf VLM-as-judge benchmark, and hallucination-flag agreement) lives in
-[`analysis/`](analysis/). It reproduces from the masked dataset fetched into
-`data/`; see [`analysis/README.md`](analysis/README.md) and
-[`analysis/expected_results.md`](analysis/expected_results.md).
-
-## Project layout
-
-```
-taste-scorer/
-├── README.md
-├── LICENSE
-├── CITATION.cff
-├── PROVENANCE.md                # where bundled files came from
-├── pyproject.toml
-├── requirements.txt
-├── data/                        # placeholder — dataset fetched separately (masked)
-│   └── README.md
-├── checkpoints/                 # placeholder — checkpoints fetched separately
-│   └── README.md
-├── examples/
-│   └── input_example.csv
-├── scripts/
-│   └── score.py                 # thin CLI wrapper (no install needed)
-├── tests/
-│   └── test_smoke.py            # checkpoint-free smoke tests
-├── training/                    # research code to reproduce the model
-│   ├── README.md
-│   ├── train.py · retrain_best.sh
-│   ├── heads.py · embedders.py · embed_cache.py · inference.py
-│   └── preprocess_data.py · summarize_sweep.py
-├── analysis/                   # paper analysis (reproduces §4-§6)
-│   ├── README.md · requirements.txt · expected_results.md
-│   ├── distribution_tests/     # signal-validation framework (refs/ fetched)
-│   ├── vlm_judge/              # open-weight VLM-as-judge benchmark
-│   └── hallucination_agreement.py
-└── src/taste_scorer/            # the pip-installable inference package
-    ├── __init__.py              # public re-exports
-    ├── model.py                 # Qwen3-VL embedding wrapper
-    ├── embedders.py             # VLEmbedder + QwenVLEmbedder (Qwen-only)
-    ├── heads.py                 # PairwiseMultiHeadScorer + HallucinationHead
-    ├── scorer.py                # PreferenceScorer (public API)
-    └── cli.py                   # taste-score entry point
-```
-
-## What the model is and isn't
-
-It is a *modular preference head* trained to imitate a panel of human
-annotators on design-quality comparisons.  It is **not** an
-image-generation reward model in the HPS/HPSv2 sense (it does not score
-absolute quality of a single image); it answers "given this prompt,
-which of these two designs would the panel prefer along dimension *d*?"
-
-It is **not** a hallucination detector beyond the binary head shipped
-with the checkpoint, which scores per-image rendering-error probability
-and is intentionally biased toward higher recall than precision.
+- Code: [github.com/purvanshi-lica/taste](https://github.com/purvanshi-lica/taste)
+- Paper: [arXiv:2605.20731](https://arxiv.org/abs/2605.20731) ([PDF](https://arxiv.org/pdf/2605.20731))
+- Dataset: [`purvanshi/TASTE`](https://huggingface.co/datasets/purvanshi/TASTE)
+- Model checkpoint: [TASTE_Checkpoint.zip](https://storage.googleapis.com/lica-assets/TASTE/TASTE_Checkpoint.zip)
+- Backbone used by the scorer: [Qwen3-VL-Embedding-2B](https://huggingface.co/Qwen/Qwen3-VL-Embedding-2B)
+- Lica World: [lica.world](https://lica.world) · Contra: [contra.com](https://contra.com)
 
 ## Citing
 
-If you use TASTE-scorer or the TASTE dataset, please cite the paper:
-[arXiv:2605.20731](https://arxiv.org/abs/2605.20731) (see
-[`CITATION.cff`](CITATION.cff) for the machine-readable entry).
+If you use the TASTE dataset or the TASTE-scorer, please cite the paper
+([arXiv:2605.20731](https://arxiv.org/abs/2605.20731)). 
+
+```
+@article{zhu2026taste,
+  title={TASTE: A Designer-Annotated Multi-Dimensional Preference Dataset for AI-Generated Graphic Design},
+  author={Zhu, Haonan and Hirsch, Elad and Minetti, Alexandria and Nulty, Allison and Mehta, Purvanshi},
+  journal={arXiv preprint arXiv:2605.20731},
+  year={2026}
+}
+```
 
 ## License
 

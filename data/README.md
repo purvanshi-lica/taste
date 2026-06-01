@@ -1,60 +1,102 @@
 # data/
 
-This directory is a placeholder.  The TASTE dataset is **not** committed to
-this repository; it is downloaded through a separate interface.
+Processing scripts for the **TASTE dataset**, hosted on the Hugging Face Hub:
+
+> [`purvanshi/TASTE`](https://huggingface.co/datasets/purvanshi/TASTE)
+
+The dataset itself is **not** committed to this repository — it is fetched from
+the Hub. This directory only holds the scripts that download a local snapshot
+and reshape the canonical tables into the artifacts the rest of the repo
+consumes:
+
+- per-(track, dimension) **ranking CSVs** → consumed by [`../analysis/`](../analysis/)
+- pairwise **battles** (winner-vs-loser) → input format for [`../taste-scorer/`](../taste-scorer/)
 
 ## Privacy
 
-Designer identities are **masked** before release.  The published pairs carry
-anonymized rater identifiers (`A1`–`A5` for the Aesthetics cohort, `D1`–`D5`
-for the Descriptions cohort) rather than any personal information.  Do not
-attempt to de-anonymize raters from the released artifacts.
+Designer identities are **masked** before release: the published rows carry
+anonymized evaluator ids (`eval_001`, `eval_002`, …) rather than any personal
+information. Do not attempt to de-anonymize raters from the released artifacts.
 
-## Getting the data
+## Install
 
-> **TODO (release):** fill in the canonical download link before publishing.
-
-The dataset will be available via one of:
-
-- **Hugging Face Hub** — `datasets.load_dataset(...)` (preferred), or
-- **Google Drive** — a download archive linked here.
-
-After download, the expected layout for training is:
-
-```
-data/
-├── battles_train.csv      # training pairs (prompt, image_a, image_b, win_rate / winner, agreement)
-├── battles_val.csv        # validation pairs
-├── halluc_train.csv       # per-image hallucination labels (optional head)
-├── halluc_val.csv
-└── images/                # the referenced design images
+```bash
+pip install -r requirements.txt
 ```
 
-Column semantics for the battle CSVs are documented in
-`training/preprocess_data.py` (which produces them from the raw rankings) and
-in `training/train.py`'s dataset loader.
+## Usage
 
-## Analysis inputs (masked ranking CSVs)
+`process.py` is a small CLI with three subcommands. Run any of them with
+`--help` for the full flag list.
 
-The analysis framework (`../analysis/`) reads the per-dimension ranking CSVs
-from `TASTE_DATA_DIR` (default: this `data/` directory). Ranking files use the
-columns:
+```bash
+# 1. Snapshot the parquet tables locally (add --with-images for the ~1.6 GB images/)
+python process.py download --out raw/
+
+# 2. Write one ranking CSV per (track, dimension) into rankings/
+python process.py rankings --raw-dir raw/ --out rankings/
+
+# 3. Derive pairwise battles (winner = image_a, by construction) into battles.csv
+python process.py battles --raw-dir raw/ --out battles.csv
+```
+
+If you skip step 1, `rankings` and `battles` will stream the parquet tables
+directly from the Hub via `hf://` URIs (also requires `huggingface_hub`).
+
+Everything this directory produces (`raw/`, `rankings/`, `battles.csv`, the
+`images/` folder, any `*.parquet`) is git-ignored; only the scripts and this
+README are tracked.
+
+## The dataset at a glance
+
+The Hub release is a set of canonical, normalized parquet tables (plus two
+pre-joined browseable views and the raw `images/`). The scripts here read the
+canonical tables:
+
+| Table | One row per | Key columns |
+|---|---|---|
+| `prompts.parquet` | unique (track, dimension, prompt) | `prompt_id`, `track`, `dimension`, `prompt_id_src`, `prompt_text` |
+| `assets.parquet` | generated image | `asset_id`, `model`, `image_url`, `image_path`, `track` |
+| `rankings.parquet` | one ranking vote | `eval_round_stage_id`, `dimension`, `track`, `prompt_id`, `asset_id`, `evaluator_id`, `rank` |
+| `hallucinations.parquet` | per-image binary judgement | `track`, `prompt_id_src`, `asset_id`, `evaluator_id`, `hallucination_value`, `hallucination_flag` |
+| `evaluators.parquet` | anonymized evaluator | `evaluator_id`, `tracks`, `n_ranking_rows`, `n_halluc_rows` |
+
+The corpus is split into two **tracks** — `aesthetics` (does it look good?) and
+`descriptions` (does it match the prompt?) — each annotated on its own subset of
+ranking **dimensions**. `preference` and `typography` appear in both tracks; the
+other five are track-exclusive. See the
+[dataset card](https://huggingface.co/datasets/purvanshi/TASTE) for the full
+schema and provenance notes.
+
+## Output formats
+
+### Ranking CSVs (`rankings/<slug>.csv`)
+
+One file per (track, dimension), in the long format the analysis framework
+reads (see [`../analysis/README.md`](../analysis/README.md)):
 
 ```
 eval_round_stage_id, model, rank, prompt_id, evaluator, prompt, model_output_image_url
 ```
 
-and the hallucination-flag files use:
+The slugs match the analysis dimension keys, e.g. `aesthetics_color_harmony`,
+`descriptions_spatial_acc`.
+
+### Battles (`battles.csv`)
+
+Every ranked group is expanded into ordered pairs where `image_a` outranks
+`image_b` (so `image_a` is the preferred design). Columns:
 
 ```
-evaluator, model, hallucination_value, asset_id, prompt_id, hallucination_flag
+pair_id, track, dimension, prompt, prompt_id,
+image_a, image_b, model_a, model_b,
+asset_id_a, asset_id_b, evaluator_id, rank_a, rank_b, winner
 ```
 
-The `evaluator` column carries the masked code (`A1`-`A5` / `D1`-`D5`), never a
-real identity.
+The `prompt`, `image_a`, `image_b`, `model_a`, `model_b` columns line up with
+the scorer's input CSV format ([`../taste-scorer/README.md`](../taste-scorer/README.md)).
 
 ## Note for inference-only users
 
-You do **not** need this dataset to run the scorer — only a trained
-checkpoint (see `../checkpoints/README.md`) and your own image pairs (see
-`../examples/input_example.csv`).
+You do **not** need this dataset to run the scorer — only a trained checkpoint
+and your own image pairs. See [`../taste-scorer/README.md`](../taste-scorer/README.md).

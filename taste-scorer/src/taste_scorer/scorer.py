@@ -36,7 +36,13 @@ from taste_scorer.heads import HallucinationHead, PairwiseMultiHeadScorer
 # CSV schema
 # ---------------------------------------------------------------------------
 REQUIRED_COLUMNS = ("prompt", "image_a", "image_b")
-OPTIONAL_PASSTHROUGH_COLUMNS = ("pair_id",)
+# Columns that are not required for inference but are passed through to the
+# scored output if present.  ``model_a`` / ``model_b`` enable post-hoc
+# leaderboards via :func:`compute_leaderboard` — when the input CSV is a
+# preference battle log between named generators, label each row with the
+# generator that produced ``image_a`` / ``image_b`` and you'll be able to
+# rank generators per dimension after scoring.
+OPTIONAL_PASSTHROUGH_COLUMNS = ("pair_id", "model_a", "model_b")
 
 
 def _validate_dataframe(df: pd.DataFrame) -> None:
@@ -328,3 +334,109 @@ class PreferenceScorer:
             out_df["halluc_prob_a"] = halluc_a
             out_df["halluc_prob_b"] = halluc_b
         return out_df
+
+
+# ---------------------------------------------------------------------------
+# Per-model leaderboard
+# ---------------------------------------------------------------------------
+LEADERBOARD_REQUIRED_COLUMNS = ("model_a", "model_b")
+
+
+def compute_leaderboard(
+    scored: pd.DataFrame,
+    dimensions: list[str] | None = None,
+    include_halluc: bool = True,
+) -> pd.DataFrame:
+    """Aggregate a scored DataFrame into a per-model × per-dimension leaderboard.
+
+    For every battle the scored DataFrame contains ``prob_a_wins_<dim>`` —
+    the probability ``image_a`` is preferred over ``image_b`` along each
+    dimension.  This function folds A/B by symmetry: every row contributes
+    one win-probability sample for ``model_a`` (= ``prob_a_wins_<dim>``)
+    and one for ``model_b`` (= ``1 - prob_a_wins_<dim>``).  The output is
+    one row per generator, one column per dimension, plus an ``overall``
+    column (mean across dims) and an ``n_pairs`` column (sample size).
+    Models are sorted by ``overall`` descending.
+
+    If the checkpoint had a hallucination head and ``include_halluc=True``,
+    a ``halluc_rate`` column is appended: the mean predicted hallucination
+    probability across every appearance of each model.
+
+    Args:
+        scored: DataFrame as returned by :meth:`PreferenceScorer.score_pairs`,
+            i.e. with ``model_a``, ``model_b``, and ``prob_a_wins_<dim>``
+            columns.  ``model_a`` / ``model_b`` are required for this
+            function (raises ``ValueError`` if missing).
+        dimensions: subset of dimensions to include (default: every
+            ``prob_a_wins_*`` column found in ``scored``, in sorted order).
+        include_halluc: whether to also compute the per-model
+            ``halluc_rate`` column.  Silently ignored if the scored
+            DataFrame doesn't carry ``halluc_prob_a`` / ``halluc_prob_b``.
+
+    Returns:
+        ``DataFrame`` indexed by ``model`` with one column per dimension
+        plus ``overall``, ``n_pairs``, and (optionally) ``halluc_rate``.
+    """
+    missing = [c for c in LEADERBOARD_REQUIRED_COLUMNS if c not in scored.columns]
+    if missing:
+        raise ValueError(
+            f"Leaderboard requires columns {list(LEADERBOARD_REQUIRED_COLUMNS)}; "
+            f"missing {missing}.  Add them to the input CSV before scoring "
+            f"(they're declared optional and pass straight through)."
+        )
+
+    if dimensions is None:
+        dimensions = sorted(
+            c.removeprefix("prob_a_wins_")
+            for c in scored.columns
+            if c.startswith("prob_a_wins_")
+        )
+    if not dimensions:
+        raise ValueError(
+            "No prob_a_wins_<dim> columns found in scored DataFrame; "
+            "is this a taste-scorer output?"
+        )
+
+    parts: list[pd.DataFrame] = []
+    for d in dimensions:
+        col = f"prob_a_wins_{d}"
+        if col not in scored.columns:
+            raise ValueError(f"Scored DataFrame is missing column: {col}")
+        p = scored[col].astype(float).values
+        parts.append(pd.DataFrame({
+            "model": scored["model_a"].values, "dim": d, "p": p,
+        }))
+        parts.append(pd.DataFrame({
+            "model": scored["model_b"].values, "dim": d, "p": 1.0 - p,
+        }))
+    long = pd.concat(parts, ignore_index=True)
+
+    table = long.pivot_table(
+        index="model", columns="dim", values="p", aggfunc="mean",
+    )
+    # Restore the requested column order (pivot_table sorts alphabetically).
+    table = table[[d for d in dimensions if d in table.columns]]
+    table["overall"] = table[dimensions].mean(axis=1)
+    table["n_pairs"] = (
+        long.groupby("model").size().div(len(dimensions)).round().astype(int)
+    )
+
+    if include_halluc and {"halluc_prob_a", "halluc_prob_b"} <= set(scored.columns):
+        halluc_long = pd.concat([
+            pd.DataFrame({
+                "model": scored["model_a"].values,
+                "h": scored["halluc_prob_a"].astype(float).values,
+            }),
+            pd.DataFrame({
+                "model": scored["model_b"].values,
+                "h": scored["halluc_prob_b"].astype(float).values,
+            }),
+        ], ignore_index=True)
+        table["halluc_rate"] = halluc_long.groupby("model")["h"].mean()
+
+    return table.sort_values("overall", ascending=False)
+
+
+def format_leaderboard(table: pd.DataFrame, decimals: int = 3) -> str:
+    """Pretty-print a leaderboard table for terminal display."""
+    return table.round(decimals).to_string()
